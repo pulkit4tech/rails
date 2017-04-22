@@ -15,6 +15,9 @@ services:
 
 addons:
   postgresql: "9.4"
+  apt:
+    packages:
+      - postgresql-9.4
 
 bundler_args: --without test --jobs 3 --retry 3
 before_install:
@@ -52,8 +55,8 @@ env:
     - "GEM=ac:integration"
 
 rvm:
-  - 2.2.6
-  - 2.3.3
+  - 2.2.7
+  - 2.3.4
   - 2.4.1
   - ruby-head
 
@@ -61,13 +64,13 @@ matrix:
   include:
     - rvm: 2.4.1
       env: "GEM=av:ujs"
-    - rvm: 2.2.6
+    - rvm: 2.2.7
       env: "GEM=aj:integration"
       services:
         - memcached
         - redis
         - rabbitmq
-    - rvm: 2.3.3
+    - rvm: 2.3.4
       env: "GEM=aj:integration"
       services:
         - memcached
@@ -85,14 +88,19 @@ matrix:
         - memcached
         - redis
         - rabbitmq
-    - rvm: 2.3.3
+    - rvm: 2.3.4
       env:
         - "GEM=ar:mysql2 MYSQL=mariadb"
       addons:
         mariadb: 10.0
-    - rvm: 2.4.1
+    - rvm: 2.3.4
       env:
         - "GEM=ar:sqlite3_mem"
+    - rvm: 2.3.4
+      env:
+        - "GEM=ar:postgresql POSTGRES=9.2"
+      addons:
+        postgresql: "9.2"
     - rvm: jruby-9.1.8.0
       jdk: oraclejdk8
       env:

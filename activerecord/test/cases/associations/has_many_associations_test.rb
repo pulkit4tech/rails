@@ -40,7 +40,7 @@ require "models/zine"
 require "models/interest"
 
 class HasManyAssociationsTestForReorderWithJoinDependency < ActiveRecord::TestCase
-  fixtures :authors, :posts, :comments
+  fixtures :authors, :author_addresses, :posts, :comments
 
   def test_should_generate_valid_sql
     author = authors(:david)
@@ -51,7 +51,7 @@ class HasManyAssociationsTestForReorderWithJoinDependency < ActiveRecord::TestCa
 end
 
 class HasManyAssociationsTestPrimaryKeys < ActiveRecord::TestCase
-  fixtures :authors, :essays, :subscribers, :subscriptions, :people
+  fixtures :authors, :author_addresses, :essays, :subscribers, :subscriptions, :people
 
   def test_custom_primary_key_on_new_record_should_fetch_with_query
     subscriber = Subscriber.new(nick: "webster132")
@@ -100,7 +100,7 @@ end
 
 class HasManyAssociationsTest < ActiveRecord::TestCase
   fixtures :accounts, :categories, :companies, :developers, :projects,
-           :developers_projects, :topics, :authors, :comments,
+           :developers_projects, :topics, :authors, :author_addresses, :comments,
            :posts, :readers, :taggings, :cars, :jobs, :tags,
            :categorizations, :zines, :interests
 
@@ -2447,12 +2447,26 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     assert_equal [first_bulb, second_bulb], car.bulbs
   end
 
-  test "double insertion of new object to association when same association used in the after create callback of a new object" do
+  test "prevent double insertion of new object when the parent association loaded in the after save callback" do
     reset_callbacks(:save, Bulb) do
       Bulb.after_save { |record| record.car.bulbs.load }
+
       car = Car.create!
       car.bulbs << Bulb.new
+
       assert_equal 1, car.bulbs.size
+    end
+  end
+
+  test "prevent double firing the before save callback of new object when the parent association saved in the callback" do
+    reset_callbacks(:save, Bulb) do
+      count = 0
+      Bulb.before_save { |record| record.car.save && count += 1 }
+
+      car = Car.create!
+      car.bulbs.create!
+
+      assert_equal 1, count
     end
   end
 
@@ -2496,7 +2510,7 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
 
   def test_loading_association_in_validate_callback_doesnt_affect_persistence
     reset_callbacks(:validation, Bulb) do
-      Bulb.after_validation { |m| m.car.bulbs.load }
+      Bulb.after_validation { |record| record.car.bulbs.load }
 
       car = Car.create!(name: "Car")
       bulb = car.bulbs.create!

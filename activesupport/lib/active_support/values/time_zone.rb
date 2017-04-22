@@ -6,7 +6,7 @@ module ActiveSupport
   # The TimeZone class serves as a wrapper around TZInfo::Timezone instances.
   # It allows us to do the following:
   #
-  # * Limit the set of zones provided by TZInfo to a meaningful subset of 146
+  # * Limit the set of zones provided by TZInfo to a meaningful subset of 134
   #   zones.
   # * Retrieve and display zones with a friendlier name
   #   (e.g., "Eastern Time (US & Canada)" instead of "America/New_York").
@@ -59,6 +59,7 @@ module ActiveSupport
       "Buenos Aires"                 => "America/Argentina/Buenos_Aires",
       "Montevideo"                   => "America/Montevideo",
       "Georgetown"                   => "America/Guyana",
+      "Puerto Rico"                  => "America/Puerto_Rico",
       "Greenland"                    => "America/Godthab",
       "Mid-Atlantic"                 => "Atlantic/South_Georgia",
       "Azores"                       => "Atlantic/Azores",
@@ -250,14 +251,21 @@ module ActiveSupport
       # for time zones in the country specified by its ISO 3166-1 Alpha2 code.
       def country_zones(country_code)
         code = country_code.to_s.upcase
-        @country_zones[code] ||=
-          TZInfo::Country.get(code).zone_identifiers.map do |tz_id|
-            name = MAPPING.key(tz_id)
-            name && self[name]
-          end.compact.sort!
+        @country_zones[code] ||= load_country_zones(code)
       end
 
       private
+        def load_country_zones(code)
+          country = TZInfo::Country.get(code)
+          country.zone_identifiers.map do |tz_id|
+            if MAPPING.value?(tz_id)
+              self[MAPPING.key(tz_id)]
+            else
+              create(tz_id, nil, TZInfo::Timezone.new(tz_id))
+            end
+          end.sort!
+        end
+
         def zones_map
           @zones_map ||= begin
             MAPPING.each_key { |place| self[place] } # load all the zones

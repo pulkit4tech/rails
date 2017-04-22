@@ -22,7 +22,7 @@ require "models/categorization"
 require "models/edge"
 
 class RelationTest < ActiveRecord::TestCase
-  fixtures :authors, :topics, :entrants, :developers, :companies, :developers_projects, :accounts, :categories, :categorizations, :posts, :comments,
+  fixtures :authors, :author_addresses, :topics, :entrants, :developers, :companies, :developers_projects, :accounts, :categories, :categorizations, :posts, :comments,
     :tags, :taggings, :cars, :minivans
 
   class TopicWithCallbacks < ActiveRecord::Base
@@ -1899,6 +1899,12 @@ class RelationTest < ActiveRecord::TestCase
   test "relations limit the records in #inspect at 10" do
     relation = Post.limit(11)
     assert_equal "#<ActiveRecord::Relation [#{Post.limit(10).map(&:inspect).join(', ')}, ...]>", relation.inspect
+  end
+
+  test "relations don't load all records in #inspect" do
+    assert_sql(/LIMIT|ROWNUM <=|FETCH FIRST/) do
+      Post.all.inspect
+    end
   end
 
   test "already-loaded relations don't perform a new query in #inspect" do

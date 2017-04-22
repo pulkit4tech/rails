@@ -64,7 +64,7 @@ class LintTest < ActiveRecord::TestCase
 end
 
 class BasicsTest < ActiveRecord::TestCase
-  fixtures :topics, :companies, :developers, :projects, :computers, :accounts, :minimalistics, "warehouse-things", :authors, :categorizations, :categories, :posts
+  fixtures :topics, :companies, :developers, :projects, :computers, :accounts, :minimalistics, "warehouse-things", :authors, :author_addresses, :categorizations, :categories, :posts
 
   def test_column_names_are_escaped
     conn      = ActiveRecord::Base.connection
@@ -701,6 +701,17 @@ class BasicsTest < ActiveRecord::TestCase
     topic = Topic.find(1)
     topic.attributes = attributes
     assert_nil topic.bonus_time
+  end
+
+  def test_attributes
+    category = Category.new(name: "Ruby")
+
+    expected_attributes = category.attribute_names.map do |attribute_name|
+      [attribute_name, category.public_send(attribute_name)]
+    end.to_h
+
+    assert_instance_of Hash, category.attributes
+    assert_equal expected_attributes, category.attributes
   end
 
   def test_boolean

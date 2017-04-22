@@ -15,7 +15,7 @@ require "models/vertex"
 
 module ActiveRecord
   class WhereTest < ActiveRecord::TestCase
-    fixtures :posts, :edges, :authors, :binaries, :essays, :cars, :treasures, :price_estimates
+    fixtures :posts, :edges, :authors, :author_addresses, :binaries, :essays, :cars, :treasures, :price_estimates
 
     def test_where_copies_bind_params
       author = authors(:david)
@@ -286,6 +286,11 @@ module ActiveRecord
     def test_where_on_association_with_custom_primary_key_with_array_of_ids
       essay = Essay.where(writer: ["David"]).first
 
+      assert_equal essays(:david_modest_proposal), essay
+    end
+
+    def test_where_on_association_with_select_relation
+      essay = Essay.where(author: Author.where(name: "David").select(:name)).take
       assert_equal essays(:david_modest_proposal), essay
     end
 

@@ -121,14 +121,6 @@ module ActiveRecord
       include PostgreSQL::DatabaseStatements
       include PostgreSQL::ColumnDumper
 
-      def schema_creation # :nodoc:
-        PostgreSQL::SchemaCreation.new self
-      end
-
-      def arel_visitor # :nodoc:
-        Arel::Visitors::PostgreSQL.new(self)
-      end
-
       # Returns true, since this connection adapter supports prepared statement
       # caching.
       def supports_statement_cache?
@@ -247,7 +239,9 @@ module ActiveRecord
 
       # Is this connection alive and ready for queries?
       def active?
-        @connection.query "SELECT 1"
+        @lock.synchronize do
+          @connection.query "SELECT 1"
+        end
         true
       rescue PG::Error
         false
@@ -255,26 +249,32 @@ module ActiveRecord
 
       # Close then reopen the connection.
       def reconnect!
-        super
-        @connection.reset
-        configure_connection
+        @lock.synchronize do
+          super
+          @connection.reset
+          configure_connection
+        end
       end
 
       def reset!
-        clear_cache!
-        reset_transaction
-        unless @connection.transaction_status == ::PG::PQTRANS_IDLE
-          @connection.query "ROLLBACK"
+        @lock.synchronize do
+          clear_cache!
+          reset_transaction
+          unless @connection.transaction_status == ::PG::PQTRANS_IDLE
+            @connection.query "ROLLBACK"
+          end
+          @connection.query "DISCARD ALL"
+          configure_connection
         end
-        @connection.query "DISCARD ALL"
-        configure_connection
       end
 
       # Disconnects from the database if already connected. Otherwise, this
       # method does nothing.
       def disconnect!
-        super
-        @connection.close rescue nil
+        @lock.synchronize do
+          super
+          @connection.close rescue nil
+        end
       end
 
       def native_database_types #:nodoc:
@@ -312,6 +312,12 @@ module ActiveRecord
 
       def supports_pgcrypto_uuid?
         postgresql_version >= 90400
+      end
+
+      def supports_alter_constraint?
+        # PostgreSQL 9.4 introduces ALTER TABLE ... ALTER CONSTRAINT but it has a bug and fixed in 9.4.2
+        # https://www.postgresql.org/docs/9.4/static/release-9-4-2.html
+        postgresql_version >= 90402
       end
 
       def get_advisory_lock(lock_id) # :nodoc:
@@ -374,11 +380,6 @@ module ActiveRecord
 
       def update_table_definition(table_name, base) #:nodoc:
         PostgreSQL::Table.new(table_name, base)
-      end
-
-      def lookup_cast_type(sql_type) # :nodoc:
-        oid = execute("SELECT #{quote(sql_type)}::regtype::oid", "SCHEMA").first["oid"].to_i
-        super(oid)
       end
 
       def column_name_for_operation(operation, node) # :nodoc:
@@ -777,8 +778,8 @@ module ActiveRecord
           $1.strip if $1
         end
 
-        def create_table_definition(*args)
-          PostgreSQL::TableDefinition.new(*args)
+        def arel_visitor
+          Arel::Visitors::PostgreSQL.new(self)
         end
 
         def can_perform_case_insensitive_comparison_for?(column)

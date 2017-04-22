@@ -22,14 +22,6 @@ module ActiveRecord
         MySQL::Table.new(table_name, base)
       end
 
-      def schema_creation # :nodoc:
-        MySQL::SchemaCreation.new(self)
-      end
-
-      def arel_visitor # :nodoc:
-        Arel::Visitors::MySQL.new(self)
-      end
-
       ##
       # :singleton-method:
       # By default, the Mysql2Adapter will consider all columns of type <tt>tinyint(1)</tt>
@@ -56,9 +48,6 @@ module ActiveRecord
         json:        { name: "json" },
       }
 
-      INDEX_TYPES  = [:fulltext, :spatial]
-      INDEX_USINGS = [:btree, :hash]
-
       class StatementPool < ConnectionAdapters::StatementPool
         private def dealloc(stmt)
           stmt[:stmt].close
@@ -73,14 +62,6 @@ module ActiveRecord
         if version < "5.1.10"
           raise "Your version of MySQL (#{full_version.match(/^\d+\.\d+\.\d+/)[0]}) is too old. Active Record supports MySQL >= 5.1.10."
         end
-      end
-
-      CHARSETS_OF_4BYTES_MAXLEN = ["utf8mb4", "utf16", "utf16le", "utf32"]
-
-      def internal_string_options_for_primary_key # :nodoc:
-        super.tap { |options|
-          options[:collation] = collation.sub(/\A[^_]+/, "utf8") if CHARSETS_OF_4BYTES_MAXLEN.include?(charset)
-        }
       end
 
       def version #:nodoc:
@@ -101,10 +82,8 @@ module ActiveRecord
         true
       end
 
-      # Technically MySQL allows to create indexes with the sort order syntax
-      # but at the moment (5.5) it doesn't yet implement them
       def supports_index_sort_order?
-        true
+        !mariadb? && version >= "8.0.1"
       end
 
       def supports_transaction_isolation?
@@ -169,10 +148,6 @@ module ActiveRecord
       # this method must be implemented to provide a uniform interface.
       def each_hash(result) # :nodoc:
         raise NotImplementedError
-      end
-
-      def new_column(*args) #:nodoc:
-        MySQL::Column.new(*args)
       end
 
       # Must return the MySQL error number from the exception, if the exception has an
@@ -314,46 +289,6 @@ module ActiveRecord
 
       def truncate(table_name, name = nil)
         execute "TRUNCATE TABLE #{quote_table_name(table_name)}", name
-      end
-
-      # Returns an array of indexes for the given table.
-      def indexes(table_name, name = nil) #:nodoc:
-        if name
-          ActiveSupport::Deprecation.warn(<<-MSG.squish)
-            Passing name to #indexes is deprecated without replacement.
-          MSG
-        end
-
-        indexes = []
-        current_index = nil
-        execute_and_free("SHOW KEYS FROM #{quote_table_name(table_name)}", "SCHEMA") do |result|
-          each_hash(result) do |row|
-            if current_index != row[:Key_name]
-              next if row[:Key_name] == "PRIMARY" # skip the primary key
-              current_index = row[:Key_name]
-
-              mysql_index_type = row[:Index_type].downcase.to_sym
-              index_type  = INDEX_TYPES.include?(mysql_index_type)  ? mysql_index_type : nil
-              index_using = INDEX_USINGS.include?(mysql_index_type) ? mysql_index_type : nil
-              indexes << IndexDefinition.new(row[:Table], row[:Key_name], row[:Non_unique].to_i == 0, [], {}, nil, nil, index_type, index_using, row[:Index_comment].presence)
-            end
-
-            indexes.last.columns << row[:Column_name]
-            indexes.last.lengths.merge!(row[:Column_name] => row[:Sub_part].to_i) if row[:Sub_part]
-          end
-        end
-
-        indexes
-      end
-
-      def new_column_from_field(table_name, field) # :nodoc:
-        type_metadata = fetch_type_metadata(field[:Type], field[:Extra])
-        if type_metadata.type == :datetime && field[:Default] == "CURRENT_TIMESTAMP"
-          default, default_function = nil, field[:Default]
-        else
-          default, default_function = field[:Default], nil
-        end
-        new_column(field[:Field], default, type_metadata, field[:Null] == "YES", table_name, default_function, field[:Collation], comment: field[:Comment].presence)
       end
 
       def table_comment(table_name) # :nodoc:
@@ -658,10 +593,6 @@ module ActiveRecord
           end
         end
 
-        def fetch_type_metadata(sql_type, extra = "")
-          MySQL::TypeMetadata.new(super(sql_type), extra: extra)
-        end
-
         def add_index_length(quoted_columns, **options)
           if length = options[:length]
             case length
@@ -864,19 +795,12 @@ module ActiveRecord
           end
         end
 
-        def extract_foreign_key_action(specifier) # :nodoc:
-          case specifier
-          when "CASCADE"; :cascade
-          when "SET NULL"; :nullify
-          end
-        end
-
         def create_table_info(table_name) # :nodoc:
           select_one("SHOW CREATE TABLE #{quote_table_name(table_name)}")["Create Table"]
         end
 
-        def create_table_definition(*args) # :nodoc:
-          MySQL::TableDefinition.new(*args)
+        def arel_visitor
+          Arel::Visitors::MySQL.new(self)
         end
 
         def mismatched_foreign_key(message)

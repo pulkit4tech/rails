@@ -24,7 +24,14 @@ repository on GitHub.
 Upgrading to Rails 5.1
 ----------------------
 
-ToDo
+If you're upgrading an existing application, it's a great idea to have good test
+coverage before going in. You should also first upgrade to Rails 5.0 in case you
+haven't and make sure your application still runs as expected before attempting
+an update to Rails 5.1. A list of things to watch out for when upgrading is
+available in the
+[Upgrading Ruby on Rails](upgrading_ruby_on_rails.html#upgrading-from-rails-5-0-to-rails-5-1)
+guide.
+
 
 Major Features
 --------------
@@ -223,40 +230,138 @@ Railties
 
 Please refer to the [Changelog][railties] for detailed changes.
 
+### Removals
+
+### Deprecations
+
+### Notable changes
+
+Action Cable
+-----------
+
+Please refer to the [Changelog][action-cable] for detailed changes.
+
+### Removals
+
+### Deprecations
+
+### Notable changes
+
+*   Added support for `channel_prefix` to Redis and evented Redis adapters
+    in `cable.yml` to avoid name collisions when using the same Redis server
+    with multiple applications.
+    ([Pull Request](https://github.com/rails/rails/pull/27425))
+
 Action Pack
 -----------
 
 Please refer to the [Changelog][action-pack] for detailed changes.
+
+### Removals
+
+### Deprecations
+
+### Notable changes
 
 Action View
 -------------
 
 Please refer to the [Changelog][action-view] for detailed changes.
 
+### Removals
+
+### Deprecations
+
+### Notable changes
+
 Action Mailer
 -------------
 
 Please refer to the [Changelog][action-mailer] for detailed changes.
+
+### Removals
+
+### Deprecations
+
+### Notable changes
+
+*   Allowed setting custom content type when attachments are included
+    and body is set inline.
+    ([Pull Request](https://github.com/rails/rails/pull/27227))
+
+*   Allowed passing lambdas as values to the `default` method.
+    ([Commit](https://github.com/rails/rails/commit/1cec84ad2ddd843484ed40b1eb7492063ce71baf))
+
+*   Added support for parameterized invocation of mailers to share before filters and defaults
+    between different mailer actions.
+    ([Commit](https://github.com/rails/rails/commit/1cec84ad2ddd843484ed40b1eb7492063ce71baf))
+
+*   Passed the incoming arguments to the mailer action to `process.action_mailer` event under
+    an `args` key.
+    ([Pull Request](https://github.com/rails/rails/pull/27900))
 
 Active Record
 -------------
 
 Please refer to the [Changelog][active-record] for detailed changes.
 
+### Removals
+
+### Deprecations
+
+### Notable changes
+
+*   Skipped comments in the output of `mysqldump` command by default.
+    ([Pull Request](https://github.com/rails/rails/pull/23301))
+
+*   Fixed `ActiveRecord::Relation#count` to use Ruby's `Enumerable#count` for counting
+    records when a block is passed as argument instead of silently ignoring the
+    passed block.
+    ([Pull Request](https://github.com/rails/rails/pull/24203))
+
+*   Pass `"-v ON_ERROR_STOP=1"` flag with `psql` command to not suppress SQL errors.
+    ([Pull Request](https://github.com/rails/rails/pull/24773))
+
 Active Model
 ------------
 
 Please refer to the [Changelog][active-model] for detailed changes.
+
+### Removals
+
+### Deprecations
+
+### Notable changes
 
 Active Job
 -----------
 
 Please refer to the [Changelog][active-job] for detailed changes.
 
+### Removals
+
+### Deprecations
+
+### Notable changes
+
 Active Support
 --------------
 
 Please refer to the [Changelog][active-support] for detailed changes.
+
+### Removals
+
+### Deprecations
+
+### Notable changes
+
+*   Added `Module#delegate_missing_to` to delegate method calls not
+    defined for the current object to a proxy object.
+    ([Pull Request](https://github.com/rails/rails/pull/23930))
+
+*   Added `Date#all_day` which returns a range representing the whole day
+    of the current date & time.
+    ([Pull Request](https://github.com/rails/rails/pull/24930))
 
 Credits
 -------

@@ -31,9 +31,6 @@ module Rails
         class_option :database,           type: :string, aliases: "-d", default: "sqlite3",
                                           desc: "Preconfigure for selected database (options: #{DATABASES.join('/')})"
 
-        class_option :javascript,         type: :string, aliases: "-j",
-                                          desc: "Preconfigure for selected JavaScript library"
-
         class_option :webpack,            type: :string, default: nil,
                                           desc: "Preconfigure for app-like JavaScript with Webpack (options: #{WEBPACKS.join('/')})"
 
@@ -307,7 +304,7 @@ module Rails
         return [] if options[:skip_sprockets]
 
         gems = []
-        gems << GemfileEntry.github("sass-rails", "rails/sass-rails", nil,
+        gems << GemfileEntry.version("sass-rails", "~> 5.0",
                                      "Use SCSS for stylesheets")
 
         if !options[:skip_javascript]
@@ -341,11 +338,6 @@ module Rails
         else
           gems = [javascript_runtime_gemfile_entry]
           gems << coffee_gemfile_entry unless options[:skip_coffee]
-
-          if options[:javascript]
-            gems << GemfileEntry.version("#{options[:javascript]}-rails", nil,
-              "Use #{options[:javascript]} as the JavaScript library")
-          end
 
           unless options[:skip_turbolinks]
             gems << GemfileEntry.version("turbolinks", "~> 5",
@@ -411,6 +403,10 @@ module Rails
 
       def spring_install?
         !options[:skip_spring] && !options.dev? && Process.respond_to?(:fork) && !RUBY_PLATFORM.include?("cygwin")
+      end
+
+      def depends_on_system_test?
+        !(options[:skip_system_test] || options[:skip_test] || options[:api])
       end
 
       def depend_on_listen?
